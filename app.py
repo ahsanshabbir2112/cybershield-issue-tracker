@@ -1,4 +1,5 @@
 from flask import Flask
+from models import init_db
 
 app = Flask(__name__)
 
@@ -12,4 +13,5 @@ def home():
 
 
 if __name__ == "__main__":
+    init_db()
     app.run(debug=True)
