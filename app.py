@@ -192,7 +192,36 @@ def update_issue(issue_id):
     connection.close()
 
     return jsonify(row_to_dict(updated_issue)), 200
+
+@app.route("/issues/<int:issue_id>", methods=["DELETE"])
+def delete_issue(issue_id):
+    connection = get_db_connection()
+
+    existing_issue = connection.execute(
+        "SELECT * FROM issues WHERE id = ?",
+        (issue_id,)
+    ).fetchone()
+
+    if existing_issue is None:
+        connection.close()
+
+        return jsonify({
+            "error": f"Issue with id {issue_id} was not found."
+        }), 404
+
+    connection.execute(
+        "DELETE FROM issues WHERE id = ?",
+        (issue_id,)
+    )
+
+    connection.commit()
+    connection.close()
+
+    return jsonify({
+        "message": f"Issue with id {issue_id} deleted successfully."
+    }), 200
     
+       
 from models import (
     get_db_connection,
     init_db,
