@@ -106,6 +106,92 @@ def get_single_issue(issue_id):
         }), 404
 
     return jsonify(row_to_dict(issue)), 200
+
+@app.route("/issues/<int:issue_id>", methods=["PUT", "PATCH"])
+def update_issue(issue_id):
+    connection = get_db_connection()
+
+    existing_issue = connection.execute(
+        "SELECT * FROM issues WHERE id = ?",
+        (issue_id,)
+    ).fetchone()
+
+    if existing_issue is None:
+        connection.close()
+
+        return jsonify({
+            "error": f"Issue with id {issue_id} was not found."
+        }), 404
+
+    data = request.get_json(silent=True) or {}
+
+    title = data.get("title", existing_issue["title"])
+    description = data.get(
+        "description",
+        existing_issue["description"]
+    )
+    severity = data.get(
+        "severity",
+        existing_issue["severity"]
+    )
+    status = data.get(
+        "status",
+        existing_issue["status"]
+    )
+    assigned_to = data.get(
+        "assigned_to",
+        existing_issue["assigned_to"]
+    )
+
+    errors = []
+
+    if not str(title).strip():
+        errors.append("Title cannot be empty.")
+
+    if severity not in VALID_SEVERITIES:
+        errors.append(
+            f"Severity must be one of {', '.join(VALID_SEVERITIES)}."
+        )
+
+    if status not in VALID_STATUSES:
+        errors.append(
+            f"Status must be one of {', '.join(VALID_STATUSES)}."
+        )
+
+    if errors:
+        connection.close()
+        return jsonify({"errors": errors}), 400
+
+    connection.execute(
+        """
+        UPDATE issues
+        SET title = ?,
+            description = ?,
+            severity = ?,
+            status = ?,
+            assigned_to = ?
+        WHERE id = ?
+        """,
+        (
+            str(title).strip(),
+            description,
+            severity,
+            status,
+            assigned_to,
+            issue_id
+        )
+    )
+
+    connection.commit()
+
+    updated_issue = connection.execute(
+        "SELECT * FROM issues WHERE id = ?",
+        (issue_id,)
+    ).fetchone()
+
+    connection.close()
+
+    return jsonify(row_to_dict(updated_issue)), 200
     
 from models import (
     get_db_connection,
