@@ -158,6 +158,52 @@ def get_all_issues():
         "count": len(issues),
         "issues": [row_to_dict(issue) for issue in issues]
     }), 200
+@app.route("/reports/summary", methods=["GET"])
+def get_summary_report():
+    connection = get_db_connection()
+
+    total_issues = connection.execute(
+        "SELECT COUNT(*) AS total FROM issues"
+    ).fetchone()["total"]
+
+    status_rows = connection.execute(
+        """
+        SELECT status, COUNT(*) AS total
+        FROM issues
+        GROUP BY status
+        """
+    ).fetchall()
+
+    severity_rows = connection.execute(
+        """
+        SELECT severity, COUNT(*) AS total
+        FROM issues
+        GROUP BY severity
+        """
+    ).fetchall()
+
+    connection.close()
+
+    issues_by_status = {
+        row["status"]: row["total"]
+        for row in status_rows
+    }
+
+    issues_by_severity = {
+        row["severity"]: row["total"]
+        for row in severity_rows
+    }
+
+    return jsonify({
+        "total_issues": total_issues,
+        "open_issues": issues_by_status.get("Open", 0),
+        "in_progress_issues": issues_by_status.get("In Progress", 0),
+        "resolved_issues": issues_by_status.get("Resolved", 0),
+        "closed_issues": issues_by_status.get("Closed", 0),
+        "critical_issues": issues_by_severity.get("Critical", 0),
+        "issues_by_status": issues_by_status,
+        "issues_by_severity": issues_by_severity
+    }), 200    
 
 @app.route("/issues/<int:issue_id>", methods=["GET"])
 def get_single_issue(issue_id):
