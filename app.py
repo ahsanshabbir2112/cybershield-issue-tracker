@@ -1,5 +1,6 @@
-from flask import Flask
+from flask import Flask, request, jsonify
 from models import init_db
+
 
 app = Flask(__name__)
 
@@ -11,6 +12,79 @@ def home():
         "company": "CyberShield Solutions Ltd"
     }
 
+@app.route("/issues", methods=["POST"])
+def create_issue():
+    data = request.get_json(silent=True) or {}
+
+    title = data.get("title")
+    description = data.get("description", "")
+    severity = data.get("severity")
+    status = data.get("status", "Open")
+    assigned_to = data.get("assigned_to", "")
+
+    errors = []
+
+    if not title or not str(title).strip():
+        errors.append("Title cannot be empty.")
+
+    if severity not in VALID_SEVERITIES:
+        errors.append(
+            f"Severity must be one of {', '.join(VALID_SEVERITIES)}."
+        )
+
+    if status not in VALID_STATUSES:
+        errors.append(
+            f"Status must be one of {', '.join(VALID_STATUSES)}."
+        )
+
+    if errors:
+        return jsonify({"errors": errors}), 400
+
+    connection = get_db_connection()
+
+    cursor = connection.execute(
+        """
+        INSERT INTO issues (
+            title,
+            description,
+            severity,
+            status,
+            assigned_to,
+            date_created
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            str(title).strip(),
+            description,
+            severity,
+            status,
+            assigned_to,
+            now_iso()
+        )
+    )
+
+    connection.commit()
+
+    new_issue_id = cursor.lastrowid
+
+    new_issue = connection.execute(
+        "SELECT * FROM issues WHERE id = ?",
+        (new_issue_id,)
+    ).fetchone()
+
+    connection.close()
+
+    return jsonify(row_to_dict(new_issue)), 201
+    
+from models import (
+    get_db_connection,
+    init_db,
+    row_to_dict,
+    now_iso,
+    VALID_SEVERITIES,
+    VALID_STATUSES
+)
 
 if __name__ == "__main__":
     init_db()

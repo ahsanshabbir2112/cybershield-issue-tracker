@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 DATABASE = "database.db"
 
@@ -34,3 +35,14 @@ def init_db():
 
     connection.commit()
     connection.close()
+
+
+def row_to_dict(row):
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def now_iso():
+    return datetime.utcnow().isoformat(timespec="seconds") + "Z"    
