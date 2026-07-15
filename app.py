@@ -29,20 +29,10 @@ def create_issue():
     status = data.get("status", "Open")
     assigned_to = data.get("assigned_to", "")
 
-    errors = []
+   errors = validate_issue_data(data, is_update=False)
 
-    if not title or not str(title).strip():
-        errors.append("Title cannot be empty.")
-
-    if severity not in VALID_SEVERITIES:
-        errors.append(
-            f"Severity must be one of {', '.join(VALID_SEVERITIES)}."
-        )
-
-    if status not in VALID_STATUSES:
-        errors.append(
-            f"Status must be one of {', '.join(VALID_STATUSES)}."
-        )
+if errors:
+    return jsonify({"errors": errors}), 400
 
     if errors:
         return jsonify({"errors": errors}), 400
@@ -205,6 +195,51 @@ def get_summary_report():
         "issues_by_severity": issues_by_severity
     }), 200    
 
+def validate_issue_data(data, is_update=False):
+    errors = []
+
+    if "title" in data or not is_update:
+        title = data.get("title")
+
+        if not title or not str(title).strip():
+            errors.append("Title cannot be empty.")
+
+        elif len(str(title).strip()) < 5:
+            errors.append("Title must contain at least 5 characters.")
+
+        elif len(str(title).strip()) > 100:
+            errors.append("Title cannot exceed 100 characters.")
+
+    if "description" in data:
+        description = data.get("description", "")
+
+        if len(str(description)) > 500:
+            errors.append("Description cannot exceed 500 characters.")
+
+    if "severity" in data or not is_update:
+        severity = data.get("severity")
+
+        if severity not in VALID_SEVERITIES:
+            errors.append(
+                f"Severity must be one of {', '.join(VALID_SEVERITIES)}."
+            )
+
+    if "status" in data:
+        status = data.get("status")
+
+        if status not in VALID_STATUSES:
+            errors.append(
+                f"Status must be one of {', '.join(VALID_STATUSES)}."
+            )
+
+    if "assigned_to" in data:
+        assigned_to = data.get("assigned_to", "")
+
+        if len(str(assigned_to)) > 80:
+            errors.append("Assigned person name cannot exceed 80 characters.")
+
+    return errors
+
 @app.route("/issues/<int:issue_id>", methods=["GET"])
 def get_single_issue(issue_id):
     connection = get_db_connection()
@@ -259,20 +294,11 @@ def update_issue(issue_id):
         existing_issue["assigned_to"]
     )
 
-    errors = []
+    errors = validate_issue_data(data, is_update=True)
 
-    if not str(title).strip():
-        errors.append("Title cannot be empty.")
-
-    if severity not in VALID_SEVERITIES:
-        errors.append(
-            f"Severity must be one of {', '.join(VALID_SEVERITIES)}."
-        )
-
-    if status not in VALID_STATUSES:
-        errors.append(
-            f"Status must be one of {', '.join(VALID_STATUSES)}."
-        )
+if errors:
+    connection.close()
+    return jsonify({"errors": errors}), 400
 
     if errors:
         connection.close()
