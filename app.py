@@ -76,6 +76,36 @@ def create_issue():
     connection.close()
 
     return jsonify(row_to_dict(new_issue)), 201
+
+@app.route("/issues", methods=["GET"])
+def get_all_issues():
+    connection = get_db_connection()
+
+    issues = connection.execute(
+        "SELECT * FROM issues ORDER BY id ASC"
+    ).fetchall()
+
+    connection.close()
+
+    return jsonify([row_to_dict(issue) for issue in issues]), 200
+
+@app.route("/issues/<int:issue_id>", methods=["GET"])
+def get_single_issue(issue_id):
+    connection = get_db_connection()
+
+    issue = connection.execute(
+        "SELECT * FROM issues WHERE id = ?",
+        (issue_id,)
+    ).fetchone()
+
+    connection.close()
+
+    if issue is None:
+        return jsonify({
+            "error": f"Issue with id {issue_id} was not found."
+        }), 404
+
+    return jsonify(row_to_dict(issue)), 200
     
 from models import (
     get_db_connection,
