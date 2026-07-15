@@ -139,8 +139,8 @@ The following tests were completed:
 
 ## Code Attribution
 
-This project was developed with the help of OpenAI ChatGPT.
+This project was developed with the help of OpenAI ChatGPT and then do it on.
 
-The generated code was reviewed, typed, integrated and tested by Ahsan Shabbir.
+The generated code was reviewed, modified, typed, integrated and tested by Ahsan Shabbir.
 
 Postman testing, GitHub commits, project setup and documentation were completed by Ahsan Shabbir.
