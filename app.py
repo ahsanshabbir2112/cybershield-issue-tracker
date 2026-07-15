@@ -1,7 +1,14 @@
 from flask import Flask, request, jsonify
 from models import init_db
 
-
+ALLOWED_SORT_COLUMNS = {
+    "id",
+    "title",
+    "severity",
+    "status",
+    "assigned_to",
+    "date_created"
+}
 app = Flask(__name__)
 
 
@@ -79,15 +86,78 @@ def create_issue():
 
 @app.route("/issues", methods=["GET"])
 def get_all_issues():
+    search = request.args.get("search", "").strip()
+    severity = request.args.get("severity", "").strip()
+    status = request.args.get("status", "").strip()
+    assigned_to = request.args.get("assigned_to", "").strip()
+
+    sort_by = request.args.get("sort_by", "id")
+    order = request.args.get("order", "asc").lower()
+
+    errors = []
+
+    if severity and severity not in VALID_SEVERITIES:
+        errors.append(
+            f"Severity must be one of {', '.join(VALID_SEVERITIES)}."
+        )
+
+    if status and status not in VALID_STATUSES:
+        errors.append(
+            f"Status must be one of {', '.join(VALID_STATUSES)}."
+        )
+
+    if sort_by not in ALLOWED_SORT_COLUMNS:
+        errors.append(
+            f"Sort column must be one of {', '.join(sorted(ALLOWED_SORT_COLUMNS))}."
+        )
+
+    if order not in ("asc", "desc"):
+        errors.append("Order must be either asc or desc.")
+
+    if errors:
+        return jsonify({"errors": errors}), 400
+
+    query = "SELECT * FROM issues WHERE 1 = 1"
+    parameters = []
+
+    if search:
+        query += """
+            AND (
+                title LIKE ?
+                OR description LIKE ?
+            )
+        """
+        search_value = f"%{search}%"
+        parameters.extend([search_value, search_value])
+
+    if severity:
+        query += " AND severity = ?"
+        parameters.append(severity)
+
+    if status:
+        query += " AND status = ?"
+        parameters.append(status)
+
+    if assigned_to:
+        query += " AND assigned_to LIKE ?"
+        parameters.append(f"%{assigned_to}%")
+
+    direction = "DESC" if order == "desc" else "ASC"
+    query += f" ORDER BY {sort_by} {direction}"
+
     connection = get_db_connection()
 
     issues = connection.execute(
-        "SELECT * FROM issues ORDER BY id ASC"
+        query,
+        parameters
     ).fetchall()
 
     connection.close()
 
-    return jsonify([row_to_dict(issue) for issue in issues]), 200
+    return jsonify({
+        "count": len(issues),
+        "issues": [row_to_dict(issue) for issue in issues]
+    }), 200
 
 @app.route("/issues/<int:issue_id>", methods=["GET"])
 def get_single_issue(issue_id):
@@ -220,8 +290,8 @@ def delete_issue(issue_id):
     return jsonify({
         "message": f"Issue with id {issue_id} deleted successfully."
     }), 200
-    
-       
+
+
 from models import (
     get_db_connection,
     init_db,
